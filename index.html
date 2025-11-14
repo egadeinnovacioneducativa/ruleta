@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de Nombres</title>
+    <!-- Importamos Tailwind CSS para un diseño rápido y moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Importamos la fuente Inter, como se prefiere -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Estilos personalizados */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Un fondo degradado suave */
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        /* Estilo para el contenedor principal de la aplicación */
+        #app-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1.5rem; /* Bordes más redondeados */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        /* Estilo para el puntero de la ruleta */
+        #pointer {
+            width: 0;
+            height: 0;
+            /* Crea un triángulo que apunta hacia abajo */
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 35px solid #0039A6; /* Color rojo */
+            position: absolute;
+            top: -15px; /* Lo posiciona ligeramente sobre el centro */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            /* Sombra sutil para el puntero */
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+        }
+
+        /* El lienzo donde se dibuja la ruleta */
+        #ruletaCanvas {
+            display: block;
+            margin: 0 auto;
+            transition: transform 5s cubic-bezier(0.25, 0.1, 0.25, 1); /* Transición de giro suave */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- AÑADIDO: Logo de la institución -->
+        <img src="https://fr.zone-secure.net/149562/1176467.png" alt="Logo de la Institución" class="w-32 h-auto mx-auto mb-4 rounded-lg">
+        
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Ruleta de Nombres</h1>
+
+        <!-- Sección de entrada de nombres -->
+        <div id="name-input-section">
+            <label for="nameInput" class="block text-sm font-medium text-gray-600 mb-2">
+                Ingresa los nombres (uno por línea, máx. 25):
+            </label>
+            <textarea id="nameInput" rows="8" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-[#0039A6] focus:border-[#0039A6] resize-none"></textarea>
+            <button id="loadButton" class="mt-4 w-full bg-[#0039A6] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#002d84] transition-all duration-300 transform hover:scale-105">
+                Cargar Ruleta
+            </button>
+        </div>
+
+        <!-- Sección de la Ruleta (inicialmente oculta) -->
+        <div id="roulette-section" class="hidden">
+            <!-- Contenedor para el puntero y el lienzo -->
+            <div id="pointer-container" class="relative w-full max-w-[400px] h-[400px] mx-auto mb-6">
+                <div id="pointer"></div>
+                <canvas id="ruletaCanvas" width="400" height="400"></canvas>
+            </div>
+
+            <button id="spinButton" class="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-400 disabled:transform-none">
+                ¡Girar!
+            </button>
+        </div>
+
+        <!-- Botón de Nuevo Giro (inicialmente oculto) -->
+        <!-- MOVIMOS ESTE BOTÓN AQUÍ (ANTES DEL DISPLAY) -->
+        <button id="resetButton" class="hidden mt-4 w-full bg-[#0039A6] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#002d84] transition-all duration-300 transform hover:scale-105">
+            Nuevo Giro (eliminar seleccionado)
+        </button>
+
+        <!-- Sección de resultados (inicialmente oculta) -->
+        <div id="winnerDisplay" class="hidden mt-6 p-4 rounded-lg text-lg font-semibold">
+            <!-- El contenido se llenará con JavaScript -->
+        </div>
+
+        <!-- Historial de Seleccionados -->
+        <div id="historyList" class="hidden mt-6 text-center">
+            <!-- El contenido se llenará con JavaScript -->
+        </div>
+
+        <!-- Botón de Nuevo Giro (inicialmente oculto) -->
+        <!-- ESTE ES EL LUGAR ANTERIOR DEL BOTÓN -->
+        
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Elementos del DOM ---
+            const loadButton = document.getElementById('loadButton');
+            const spinButton = document.getElementById('spinButton');
+            const resetButton = document.getElementById('resetButton');
+            const nameInput = document.getElementById('nameInput');
+            const winnerDisplay = document.getElementById('winnerDisplay');
+            const nameInputSection = document.getElementById('name-input-section');
+            const rouletteSection = document.getElementById('roulette-section');
+            const canvas = document.getElementById('ruletaCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // --- Variables de estado ---
+            let names = [];
+            let selectionHistory = []; // <-- AÑADIDO: Para guardar el historial
+            let currentWinner = null;
+            let isSpinning = false;
+            let currentRotation = 0; // Rotación actual en radianes
+
+            // Paleta de colores para los segmentos de la ruleta
+            const colors = [
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#FED766', '#F0E68C',
+                '#98D8C8', '#F9B4AB', '#FDEB93', '#E6E6FA', '#FFDAB9',
+                '#B5EAD7', '#FFC3A0', '#A0E7E5', '#FBC7C4', '#BADBAD',
+                '#C7CEEA', '#F6EAC2', '#FFDAC1', '#FF9AA2', '#E2F0CB',
+                '#B3E2CD', '#FDCDAC', '#CBD5E8', '#F4C2C2', '#C2F0C2'
+            ];
+
+            // --- Funciones ---
+
+            /**
+             * Muestra un mensaje (error o ganador) en el display.
+             * @param {string} message - El mensaje a mostrar.
+             * @param {('winner'|'error'|'info')} type - El tipo de mensaje.
+             */
+            function showMessage(message, type) {
+                winnerDisplay.classList.remove('hidden', 'bg-yellow-100', 'border-yellow-500', 'text-yellow-700', 'bg-red-100', 'border-red-500', 'text-red-700', 'bg-blue-100', 'border-blue-500', 'text-blue-700');
+                
+                if (type === 'winner') {
+                    winnerDisplay.classList.add('bg-yellow-100', 'border-yellow-500', 'text-yellow-700');
+                    winnerDisplay.innerHTML = `¡Seleccionado! <strong class="text-yellow-800">${message}</strong>`; // <-- CAMBIADO
+                } else if (type === 'error') {
+                    winnerDisplay.classList.add('bg-red-100', 'border-red-500', 'text-red-700');
+                    winnerDisplay.innerHTML = `<strong>Error:</strong> ${message}`;
+                } else {
+                     winnerDisplay.classList.add('bg-blue-100', 'border-blue-500', 'text-blue-700');
+                    winnerDisplay.innerHTML = `<strong>${message}</strong>`;
+                }
+                
+                winnerDisplay.classList.remove('hidden');
+            }
+
+            /**
+             * Oculta el mensaje de display.
+             */
+            function hideMessage() {
+                winnerDisplay.classList.add('hidden');
+            }
+
+            /**
+             * Lee los nombres del textarea, los valida y carga la ruleta.
+             */
+            function loadNames() {
+                const rawNames = nameInput.value.split('\n')
+                    .map(name => name.trim())
+                    .filter(name => name.length > 0);
+
+                if (rawNames.length < 2) {
+                    showMessage('Se necesitan al menos 2 nombres para la ruleta.', 'error');
+                    return;
+                }
+
+                if (rawNames.length > 25) {
+                    showMessage('No se permiten más de 25 nombres.', 'error');
+                    return;
+                }
+
+                names = rawNames;
+                currentWinner = null;
+                isSpinning = false;
+                currentRotation = 0; // Resetea la rotación
+                selectionHistory = []; // <-- AÑADIDO: Resetea el historial
+                canvas.style.transform = 'rotate(0deg)'; // Resetea visualmente
+
+                hideMessage();
+                updateHistoryDisplay(); // <-- AÑADIDO: Limpia la vista del historial
+                nameInputSection.classList.add('hidden');
+                rouletteSection.classList.remove('hidden');
+                spinButton.classList.remove('hidden');
+                spinButton.disabled = false;
+                resetButton.classList.add('hidden');
+                
+                drawRouletteWheel();
+            }
+
+            /**
+             * Dibuja la ruleta en el canvas con los nombres actuales.
+             */
+            function drawRouletteWheel() {
+                const numSegments = names.length;
+                const arcSize = (2 * Math.PI) / numSegments;
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const radius = canvas.width / 2 - 10; // Un pequeño padding
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = '#FFFFFF'; // Borde blanco entre segmentos
+                ctx.lineWidth = 3;
+
+                for (let i = 0; i < numSegments; i++) {
+                    const startAngle = i * arcSize;
+                    const endAngle = (i + 1) * arcSize;
+                    
+                    // Dibuja el segmento
+                    ctx.fillStyle = colors[i % colors.length];
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, startAngle, endAngle, false);
+                    ctx.arc(centerX, centerY, 0, endAngle, startAngle, true); // Línea hacia el centro
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Dibuja el texto (nombre)
+                    ctx.save();
+                    ctx.fillStyle = '#333333'; // Color de texto oscuro
+                    ctx.font = 'bold 14px Inter, sans-serif';
+                    
+                    // Calcula la posición y rotación del texto
+                    const textAngle = startAngle + arcSize / 2;
+                    
+                    // Mueve el canvas al punto medio del radio (70%)
+                    ctx.translate(
+                        centerX + Math.cos(textAngle) * (radius * 0.7), // <-- CAMBIADO de 0.6 a 0.7
+                        centerY + Math.sin(textAngle) * (radius * 0.7)  // <-- CAMBIADO de 0.6 a 0.7
+                    );
+
+                    // Rota el canvas para alinear el texto con el radio
+                    // Si el texto está en la mitad izquierda (entre 90 y 270 grados, o PI/2 y 3*PI/2),
+                    // giramos 180 grados (PI radianes) para que no quede al revés.
+                    if (textAngle > Math.PI / 2 && textAngle < 3 * Math.PI / 2) {
+                        ctx.rotate(textAngle + Math.PI);
+                    } else {
+                        ctx.rotate(textAngle);
+                    }
+                    
+                    ctx.textAlign = 'center'; // Centra el texto en el radio
+                    ctx.textBaseline = 'middle'; // Centrado verticalmente
+                    
+                    // Define un max width para el texto, e.g., 50% del radio
+                    const maxWidth = radius * 0.5; // <-- AÑADIDO
+                    
+                    ctx.fillText(names[i], 0, 0, maxWidth); // <-- CAMBIADO (añadido maxWidth)
+                    ctx.restore();
+                }
+            }
+
+            /**
+             * Inicia la animación de giro.
+             */
+            function spin() {
+                if (isSpinning) return;
+                
+                isSpinning = true;
+                spinButton.disabled = true;
+                hideMessage();
+                resetButton.classList.add('hidden');
+
+                // --- Lógica de Giro ---
+                // 1. Calcula un ángulo de parada aleatorio.
+                // Mínimo 5 rotaciones completas + una rotación parcial aleatoria.
+                const fullRotations = 5 * 360;
+                const randomPartialRotation = Math.random() * 360;
+                const totalRotationDegrees = fullRotations + randomPartialRotation;
+                
+                // 2. Convierte la rotación actual (en radianes) a grados
+                let currentRotationDegrees = currentRotation * (180 / Math.PI);
+                
+                // 3. El nuevo ángulo de parada es la rotación actual + la nueva rotación
+                const targetRotationDegrees = currentRotationDegrees + totalRotationDegrees;
+
+                // 4. Aplica la rotación usando CSS transition para la animación
+                canvas.style.transition = 'transform 5s cubic-bezier(0.25, 0.1, 0.25, 1)';
+                canvas.style.transform = `rotate(${targetRotationDegrees}deg)`;
+
+                // 5. Guarda la rotación final en radianes para cálculos futuros
+                currentRotation = targetRotationDegrees * (Math.PI / 180);
+
+                // 6. Espera a que termine la animación para obtener el ganador
+                setTimeout(getWinner, 5100); // 5000ms de animación + 100ms de margen
+            }
+            
+            /**
+             * Calcula y anuncia al ganador después del giro.
+             */
+            function getWinner() {
+                const numSegments = names.length;
+                const arcSize = (2 * Math.PI) / numSegments; // Tamaño de cada segmento en radianes
+
+                // El puntero está en la parte superior, que es 3*PI/2 o -PI/2 radianes.
+                // Usaremos 3*PI/2 (270 grados).
+                const pointerAngle = 3 * Math.PI / 2;
+                
+                // Normaliza la rotación actual (solo nos importa la vuelta final)
+                const finalRotation = currentRotation % (2 * Math.PI);
+
+                // Calcula el ángulo del lienzo que está *debajo* del puntero.
+                // (Ángulo del puntero - rotación del lienzo)
+                // Añadimos 2*PI para asegurar que el resultado sea positivo antes del módulo.
+                const angleUnderPointer = (pointerAngle - finalRotation + 2 * Math.PI) % (2 * Math.PI);
+
+                // Divide el ángulo bajo el puntero por el tamaño del segmento para obtener el índice.
+                const winnerIndex = Math.floor(angleUnderPointer / arcSize);
+                
+                currentWinner = names[winnerIndex];
+                selectionHistory.push(currentWinner); // <-- AÑADIDO: Guarda en el historial
+
+                // Anuncia al seleccionado
+                showMessage(currentWinner, 'winner');
+                updateHistoryDisplay(); // <-- AÑADIDO: Muestra el historial
+
+                // Muestra el botón de "Nuevo Giro"
+                isSpinning = false;
+                resetButton.classList.remove('hidden');
+
+                // Si solo queda una persona, el juego termina
+                if (names.length <= 2) {
+                    spinButton.classList.add('hidden'); // Oculta el botón de girar
+                }
+            }
+
+            /**
+             * Elimina al ganador actual de la lista y prepara el siguiente giro.
+             */
+            function resetSpin() {
+                if (!currentWinner) return;
+
+                // Filtra al ganador de la lista
+                names = names.filter(name => name !== currentWinner);
+                currentWinner = null;
+                
+                hideMessage();
+                resetButton.classList.add('hidden');
+
+                if (names.length < 2) {
+                    // Fin del juego
+                    const lastName = names[0] || 'nadie'; // Capturamos el último nombre
+
+                    showMessage(`¡Juego terminado! El último participante fue ${lastName}.`, 'info');
+                    
+                    // --- INICIO DE LA MODIFICACIÓN ---
+                    // Añadimos al último participante al historial y actualizamos la vista
+                    if (names.length === 1) {
+                        selectionHistory.push(lastName);
+                        updateHistoryDisplay();
+                    }
+                    // --- FIN DE LA MODIFICACIÓN ---
+
+                    rouletteSection.classList.add('hidden');
+                    nameInputSection.classList.remove('hidden'); // Muestra la entrada de nombres de nuevo
+                    nameInput.value = ''; // Limpia el textarea
+                } else {
+                    // Prepara el siguiente giro
+                    spinButton.disabled = false;
+                    drawRouletteWheel(); // Redibuja la ruleta sin el ganador
+                }
+            }
+
+            /**
+             * AÑADIDO: Actualiza la lista del historial en el HTML.
+             */
+            function updateHistoryDisplay() {
+                const historyList = document.getElementById('historyList');
+                if (selectionHistory.length === 0) {
+                    historyList.classList.add('hidden');
+                    historyList.innerHTML = ''; // Limpia el contenido
+                    return;
+                }
+                
+                historyList.classList.remove('hidden');
+                
+                // Construye el HTML de la lista
+                let listHtml = '<h3 class="text-lg font-semibold text-gray-700 mb-2">Orden de Selección:</h3>' +
+                               '<ol class="list-decimal list-inside text-left text-gray-600 max-w-xs mx-auto">';
+                
+                selectionHistory.forEach((name, index) => {
+                    listHtml += `<li class="truncate">${index + 1}. ${name}</li>`;
+                });
+                
+                listHtml += '</ol>';
+                historyList.innerHTML = listHtml;
+            }
+
+
+            // --- Asignación de Eventos ---
+            loadButton.addEventListener('click', loadNames);
+            spinButton.addEventListener('click', spin);
+            resetButton.addEventListener('click', resetSpin);
+        });
+    </script>
+
+</body>
+</html>
