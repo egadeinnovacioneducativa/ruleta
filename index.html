@@ -88,7 +88,7 @@
             </div>
 
             <button id="spinButton" class="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-400 disabled:transform-none">
-                ¡Girar!
+                ¡Spin!
             </button>
         </div>
 
@@ -182,12 +182,12 @@
                     .filter(name => name.length > 0);
 
                 if (rawNames.length < 2) {
-                    showMessage('Se necesitan al menos 2 nombres para la ruleta.', 'error');
+                    showMessage('You need at least 2 names', 'error');
                     return;
                 }
 
                 if (rawNames.length > 25) {
-                    showMessage('No se permiten más de 25 nombres.', 'error');
+                    showMessage('No more of 25 names', 'error');
                     return;
                 }
 
@@ -360,7 +360,7 @@
                     // Fin del juego
                     const lastName = names[0] || 'nadie'; // Capturamos el último nombre
 
-                    showMessage(`¡Juego terminado! El último participante fue ${lastName}.`, 'info');
+                    showMessage(`The last name selected was ${lastName}.`, 'info');
                     
                     // --- INICIO DE LA MODIFICACIÓN ---
                     // Añadimos al último participante al historial y actualizamos la vista
