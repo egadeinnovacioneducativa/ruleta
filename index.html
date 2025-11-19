@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruleta de Nombres</title>
+    <title>Wheel of Names</title>
     <!-- Importamos Tailwind CSS para un diseño rápido y moderno -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Importamos la fuente Inter, como se prefiere -->
@@ -66,16 +66,16 @@
         <!-- AÑADIDO: Logo de la institución -->
         <img src="https://fr.zone-secure.net/149562/1176467.png" alt="Logo de la Institución" class="w-32 h-auto mx-auto mb-4 rounded-lg">
         
-        <h1 class="text-3xl font-bold text-gray-800 mb-6">Ruleta de Nombres</h1>
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Wheel of names</h1>
 
         <!-- Sección de entrada de nombres -->
         <div id="name-input-section">
             <label for="nameInput" class="block text-sm font-medium text-gray-600 mb-2">
-                Ingresa los nombres (uno por línea, máx. 25):
+                Put the list of names (one for line, máx. 25):
             </label>
             <textarea id="nameInput" rows="8" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-[#0039A6] focus:border-[#0039A6] resize-none"></textarea>
             <button id="loadButton" class="mt-4 w-full bg-[#0039A6] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#002d84] transition-all duration-300 transform hover:scale-105">
-                Cargar Ruleta
+                Charging
             </button>
         </div>
 
@@ -95,7 +95,7 @@
         <!-- Botón de Nuevo Giro (inicialmente oculto) -->
         <!-- MOVIMOS ESTE BOTÓN AQUÍ (ANTES DEL DISPLAY) -->
         <button id="resetButton" class="hidden mt-4 w-full bg-[#0039A6] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#002d84] transition-all duration-300 transform hover:scale-105">
-            Nuevo Giro (eliminar seleccionado)
+            New spin (delete selected)
         </button>
 
         <!-- Sección de resultados (inicialmente oculta) -->
